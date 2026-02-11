@@ -30,3 +30,6 @@ def filter_suspicions():
     filtered_dict = {key : suspicion_dict[key] for key in suspicion_dict if len(suspicion_dict[key]) >= 2}
     return filtered_dict
 
+def get_night_logs():
+    night_logs = list(filter(lambda line : check_time_range(time(00,00,00),time(6,0,0),line[0].split()[1].split(':')[0]),log_reader()))
+    return night_logs
