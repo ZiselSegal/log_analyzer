@@ -1,34 +1,47 @@
-from reader import log_reader
-from config import external_ips,large_file,sensetive_ports
-from datetime import time
-from aanalyzer import check_time_range
+from config import large_file,sensetive_ports,external_ips
 
-def get_sensetive_ports():
-    sensetive_ports = [port for port in log_reader() if port[3]  in sensetive_ports]
-    return sensetive_ports
+def get_all_logs():
+    with open('network_traffic.log','r') as f:
+        for line in f:
+            line = line.strip('\n').split(',')
+            yield line
 
-def get_large_logs():
-    large_logs = [file for file in log_reader() if int(file[5]) > large_file]
-    return large_logs
+def filter_suspicions(logs_generator):
+    for line in logs_generator:
+        if line[1] in external_ips or line[3] in sensetive_ports or int(line[5]) > large_file or 00 < int(line[0][11:13]) < 6:
+            yield line
+        continue
 
-def tag_logs():
-    tagged_logs = [line + ["LARGE"] if int(line[5]) > large_file else line + ['NORAML'] for line in log_reader()]
-    return tagged_logs
+def suspicion_details(suspicious_filter):
+    for line in suspicious_filter:
+        flag = False
+        suspicions_list = []
+        if line[1] in external_ips:
+            suspicions_list.append('EXTERNAL_IP')
+            flag = True
+        if line[3] in sensetive_ports:
+            suspicions_list.append('SENSETIVE_PORT')
+            flag = True
+        if int(line[5]) > large_file:
+            suspicions_list.append('LARGE_PACKET')
+            flag = True
+        if 00 < int(line[0][11:13]) < 6:
+            suspicions_list.append('NIGHT_ACTIVITY')
+            flag = True
+        if flag == True:
+            yield line,suspicions_list
+        else:
+            continue
 
-def get_sensetive_ports_lines():
-    sensetive_lines = list(filter(lambda line : line[3] in sensetive_ports,log_reader()))
-    return sensetive_lines
+def sum_suspicious_logs(filter_function):
+    num = sum(1 for line in filter_function)
+    return num
 
-def create_reviewer_dict():
-    reviewer_dict = {'EXTERNAL_IP' : lambda line : line not in external_ips,
-                     'SENSETIVE_PORT' : lambda line : line in sensetive_ports,
-                     'LARGE_PACKET' : lambda line : int(line) > large_file,
-                     'NIGHT ACTIVITY' : lambda line : check_time_range(time(00,00,00),time(6,0,0),line[0].split()[1].split(':')[0])}
-    return reviewer_dict
-for k in create_reviewer_dict():
-    print(k)
+logs = get_all_logs()
+filtered = filter_suspicions(logs)
+detailed = suspicion_details(filtered)
+sum = sum_suspicious_logs(detailed)
+print(f'total suspicions: {sum}')
 
 
-# def get_line_by_suspicion(line_num,reviewer_dict):
-#         [dict for dict in reviewer_dict if filter(dict[])]
 
